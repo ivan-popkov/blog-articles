@@ -1,3 +1,7 @@
+---
+date: 2024-06-19
+---
+
 # Code Quality Tools: Finding the Perfect Fit for Your Project
 
 ![](cover.png)
