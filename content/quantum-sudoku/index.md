@@ -1,6 +1,6 @@
 ---
 title: Let's solve sudoku on a quantum computer
-thumbnail: ./cover.jpeg
+thumbnail: ./quantum_sudoku_square.svg
 thumbnail_alt: How to solve a Sudoku with a quantum algorithm
 authors:
   - Ivan Popkov
