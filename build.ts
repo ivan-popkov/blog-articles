@@ -235,4 +235,14 @@ articles.sort((x, y) => (y.date ?? "").localeCompare(x.date ?? ""));
 await Bun.write(join(OUT_DIR, "index.html"), renderIndex(articles));
 copyFileSync("style.css", join(OUT_DIR, "style.css"));
 
+// Passthrough root files: search-engine verification files (e.g. Google
+// Search Console's google<token>.html) must live at the site root and survive
+// every rebuild, so copy them straight into dist/.
+for (const f of readdirSync(".")) {
+  if (/^google[0-9a-f]+\.html$/i.test(f)) {
+    copyFileSync(f, join(OUT_DIR, f));
+    console.log(`copied verification file ${f}`);
+  }
+}
+
 console.log(`\n✓ built ${articles.length} articles -> ${OUT_DIR}/`);
