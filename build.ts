@@ -15,6 +15,9 @@ import { marked } from "marked";
 const CONTENT_DIR = "content";
 const OUT_DIR = "dist";
 const SITE_TITLE = "Ivan Popkov — Articles";
+// Absolute base URL of the published site (no trailing slash). Used for
+// canonical links, Open Graph image URLs, and the sitemap.
+const SITE_URL = "https://ivan-popkov.github.io/blog-articles";
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -139,16 +142,47 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-function page(opts: { title: string; description: string | null; cssHref: string; body: string }): string {
+function page(opts: {
+  title: string;
+  description: string | null;
+  cssHref: string;
+  body: string;
+  canonical: string; // absolute URL of this page
+  ogType: "website" | "article";
+  image?: string | null; // absolute URL of the social-preview image
+  publishedTime?: string | null; // ISO date for articles
+}): string {
+  const head: string[] = [
+    `<meta charset="utf-8">`,
+    `<meta name="viewport" content="width=device-width, initial-scale=1">`,
+    `<title>${esc(opts.title)}</title>`,
+  ];
+  if (opts.description) head.push(`<meta name="description" content="${esc(opts.description)}">`);
+  head.push(`<link rel="canonical" href="${esc(opts.canonical)}">`);
+
+  // Open Graph (Facebook, LinkedIn, Slack, iMessage, …)
+  head.push(
+    `<meta property="og:type" content="${opts.ogType}">`,
+    `<meta property="og:title" content="${esc(opts.title)}">`,
+    `<meta property="og:url" content="${esc(opts.canonical)}">`,
+    `<meta property="og:site_name" content="${esc(SITE_TITLE)}">`,
+  );
+  if (opts.description) head.push(`<meta property="og:description" content="${esc(opts.description)}">`);
+  if (opts.image) head.push(`<meta property="og:image" content="${esc(opts.image)}">`);
+  if (opts.publishedTime) head.push(`<meta property="article:published_time" content="${esc(opts.publishedTime)}">`);
+
+  // Twitter / X card
+  head.push(`<meta name="twitter:card" content="${opts.image ? "summary_large_image" : "summary"}">`);
+  head.push(`<meta name="twitter:title" content="${esc(opts.title)}">`);
+  if (opts.description) head.push(`<meta name="twitter:description" content="${esc(opts.description)}">`);
+  if (opts.image) head.push(`<meta name="twitter:image" content="${esc(opts.image)}">`);
+
+  head.push(`<link rel="stylesheet" href="${opts.cssHref}">`);
+
   return `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(opts.title)}</title>${
-    opts.description ? `\n<meta name="description" content="${esc(opts.description)}">` : ""
-  }
-<link rel="stylesheet" href="${opts.cssHref}">
+${head.join("\n")}
 </head>
 <body>
 ${opts.body}
@@ -180,7 +214,16 @@ ${cover}
 ${a.bodyHtml}
 </article>
 <footer><a class="back" href="../index.html">← All articles</a></footer>`;
-  return page({ title: a.title, description: a.description, cssHref: "../style.css", body });
+  return page({
+    title: a.title,
+    description: a.description,
+    cssHref: "../style.css",
+    body,
+    canonical: `${SITE_URL}/${a.slug}/`,
+    ogType: "article",
+    image: a.cover ? `${SITE_URL}/${a.slug}/${a.cover}` : null,
+    publishedTime: a.date,
+  });
 }
 
 function renderIndex(articles: Article[]): string {
@@ -209,7 +252,33 @@ function renderIndex(articles: Article[]): string {
 <main class="grid">
 ${cards}
 </main>`;
-  return page({ title: SITE_TITLE, description: "Articles written by Ivan Popkov.", cssHref: "style.css", body });
+  // Use the newest article's cover as the homepage social-preview image.
+  const featured = articles.find((a) => a.cover);
+  const image = featured ? `${SITE_URL}/${featured.slug}/${featured.cover}` : null;
+  return page({
+    title: SITE_TITLE,
+    description: "Articles written by Ivan Popkov.",
+    cssHref: "style.css",
+    body,
+    canonical: `${SITE_URL}/`,
+    ogType: "website",
+    image,
+  });
+}
+
+function renderSitemap(articles: Article[]): string {
+  const urls = [
+    `  <url><loc>${SITE_URL}/</loc></url>`,
+    ...articles.map((a) => {
+      const lastmod = a.date ? `<lastmod>${a.date}</lastmod>` : "";
+      return `  <url><loc>${SITE_URL}/${a.slug}/</loc>${lastmod}</url>`;
+    }),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join("\n")}
+</urlset>
+`;
 }
 
 // run
@@ -234,6 +303,13 @@ articles.sort((x, y) => (y.date ?? "").localeCompare(x.date ?? ""));
 
 await Bun.write(join(OUT_DIR, "index.html"), renderIndex(articles));
 copyFileSync("style.css", join(OUT_DIR, "style.css"));
+
+// Sitemap + robots.txt for search engines.
+await Bun.write(join(OUT_DIR, "sitemap.xml"), renderSitemap(articles));
+await Bun.write(
+  join(OUT_DIR, "robots.txt"),
+  `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`,
+);
 
 // Passthrough verification files (e.g. Google Search Console's
 // google<token>.html). Google checks for the file at the exact URL-prefix of
