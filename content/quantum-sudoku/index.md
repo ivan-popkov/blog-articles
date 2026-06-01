@@ -1,5 +1,5 @@
 ---
-title: Quantum sudoku
+title: Let's solve sudoku on a quantum computer
 thumbnail: ./cover.jpeg
 thumbnail_alt: How to solve a Sudoku with a quantum algorithm
 authors:
