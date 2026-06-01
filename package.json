@@ -1,0 +1,15 @@
+{
+  "name": "blog-articles",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static archive of Ivan Popkov's articles",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "preview": "bun run build.ts && bun --bun x serve dist"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "marked": "^12.0.2"
+  }
+}
